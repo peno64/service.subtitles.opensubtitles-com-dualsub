@@ -1,9 +1,14 @@
-OpenSubtitles.com KODI add-on
-=============================
+OpenSubtitles.com_dualsubtitles KODI add-on
+===========================================
 Search and download subtitles for movies and TV-Series from OpenSubtitles.com. Search in 75 languages, 4.000.000+ subtitles, daily updates.
+Allow to display two subtitles at the same time
 
-REST API implementation based on tomburke25 [python-opensubtitles-rest-api](https://github.com/tomburke25/python-opensubtitles-rest-api)                            
+REST API implementation based on tomburke25 [python-opensubtitles-rest-api](https://github.com/tomburke25/python-opensubtitles-rest-api)
 
+v2.0.0 (2023-11-29)
+- Add dual subtitle support
+
+-
 v1.0.2 (2023-08-28)
 - Update user agent header
 
