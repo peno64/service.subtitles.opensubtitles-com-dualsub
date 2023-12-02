@@ -2,7 +2,7 @@
 <addon id="service.subtitles.opensubtitles-com_dualsub"
        name="OpenSubtitles.com with dual subs"
        version="2.0.0"
-       provider-name="amet, opensubtitles, juokelis, opensubtitlesdev, peno64">
+       provider-name="peno64, amet, opensubtitles, juokelis, opensubtitlesdev">
 	<requires>
 		<import addon="xbmc.python" version="3.0.0"/>
 		<import addon="script.module.requests" version="2.25.1+matrix.1"/>
@@ -68,7 +68,6 @@ v1.0.1 (2023-07-28)
 		<license>GPL-2.0-only</license>
 		<forum>https://forum.opensubtitles.com/t/new-kodi-extension/1673</forum>
 		<website>https://www.opensubtitles.com/en</website>
-		<email>cto [at] opensubtitles {dot} org</email>
 		<assets>
 			<icon>resources/media/os_logo_512x512.png</icon>
 			<fanart>resources/media/os_fanart.jpg</fanart>
@@ -76,6 +75,6 @@ v1.0.1 (2023-07-28)
 			<screenshot>resources/media/screenshot_2.jpg</screenshot>
 			<screenshot>resources/media/screenshot_3.jpg</screenshot>
 		</assets>
-		<source>https://github.com/opensubtitlesdev/service.subtitles.opensubtitles-com</source>
+		<source>https://github.com/peno64/service.subtitles.opensubtitles-com_dualsub</source>
 	</extension>
 </addon>
