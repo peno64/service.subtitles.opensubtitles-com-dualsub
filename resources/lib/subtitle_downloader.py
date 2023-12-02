@@ -186,6 +186,7 @@ class SubtitleDownloader:
               xbmcplugin.addDirectoryItem(handle=self.handle, url=url, listitem=list_item, isFolder=False)
 
         if(__addon__.getSetting('dualsub_enable') == 'true'):
+          listitems = sorted(listitems, key = lambda i: f"{i.getLabel()}|{i.getLabel2()}")
           while True:
             ret = __msg_box__.multiselect(__language__(32607), [i for i in listitems],useDetails=True)
             if ret and len(ret) > 2:
