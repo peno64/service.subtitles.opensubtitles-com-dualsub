@@ -9,13 +9,24 @@ Allow to display two subtitles at the same time
 
 REST API implementation based on tomburke25 [python-opensubtitles-rest-api](https://github.com/tomburke25/python-opensubtitles-rest-api)
 
+v2.0.2 (2024-05-22)
+- Implemented changes from v1.0.3 and v1.0.4
+
 v2.0.1 (2024-04-07)
 - Add possibility to choose the Kodi selected subtitle font
 
 v2.0.0 (2023-11-29)
 - Add dual subtitle support
 
--
+v1.0.4 (2024-01-15)
+- Sanitize language query
+- Improved sorting
+- Improved error messages
+- Improved usage of moviehash
+
+v1.0.3 (2023-12-18)
+- Fixed issue with file path
+
 v1.0.2 (2023-08-28)
 - Update user agent header
 

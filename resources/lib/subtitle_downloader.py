@@ -13,7 +13,7 @@ import json
 from resources.lib.data_collector import get_language_data, get_media_data, get_file_path, convert_language, \
     clean_feature_release_name, get_flag
 from resources.lib.exceptions import AuthenticationError, ConfigurationError, DownloadLimitExceeded, ProviderError, \
-    ServiceUnavailable, TooManyRequests
+    ServiceUnavailable, TooManyRequests, BadUsernameError
 from resources.lib.file_operations import get_file_data
 from resources.lib.os.provider import OpenSubtitlesProvider
 from resources.lib.utilities import get_params, log, error
@@ -113,6 +113,9 @@ class SubtitleDownloader:
         except AuthenticationError as e:
             error(__name__, 32003, e)
             valid = 0
+        except BadUsernameError as e:
+            error(__name__, 32214, e)
+            valid = 0
         except DownloadLimitExceeded as e:
             log(__name__, f"XYXYXX limit excedded, username: {self.username}  {e}")
             if self.username=="":
@@ -164,66 +167,71 @@ class SubtitleDownloader:
 
     def list_subtitles(self):
         """TODO rewrite using new data. do not forget Series/Episodes"""
-        listitems=[]
-        for subtitle in self.subtitles:
-            attributes = subtitle["attributes"]
-            language = convert_language(attributes["language"], True)
-            log(__name__, attributes)
-            clean_name = clean_feature_release_name(attributes["feature_details"]["title"], attributes["release"],
-                                                    attributes["feature_details"]["movie_name"])
-            list_item = xbmcgui.ListItem(label=language,
-                                         label2=clean_name)
-            list_item.setArt({
-                "icon": str(int(round(float(attributes["ratings"]) / 2))),
-                "thumb": get_flag(attributes["language"])})
-            list_item.setProperty("sync", "true" if ("moviehash_match" in attributes and attributes["moviehash_match"]) else "false")
-            list_item.setProperty("hearing_imp", "true" if attributes["hearing_impaired"] else "false")
-            """TODO take care of multiple cds id&id or something"""
-            listitems.append(list_item)
-            if(__addon__.getSetting('dualsub_enable') != 'true'):
-              url = f"plugin://{__scriptid__}/?action=download&id={attributes['files'][0]['file_id']}"
+        if self.subtitles:
+            listitems=[]
+            for subtitle in reversed(sorted(self.subtitles, key=lambda x: (
+                    bool(x["attributes"].get("from_trusted", False)),
+                    x["attributes"].get("votes", 0) or 0,
+                    x["attributes"].get("ratings", 0) or 0,
+                    x["attributes"].get("download_count", 0) or 0))):
+                attributes = subtitle["attributes"]
+                language = convert_language(attributes["language"], True)
+                log(__name__, attributes)
+                clean_name = clean_feature_release_name(attributes["feature_details"]["title"], attributes["release"],
+                                                        attributes["feature_details"]["movie_name"])
+                list_item = xbmcgui.ListItem(label=language,
+                                             label2=clean_name)
+                list_item.setArt({
+                    "icon": str(int(round(float(attributes["ratings"]) / 2))),
+                    "thumb": get_flag(attributes["language"])})
+                list_item.setProperty("sync", "true" if ("moviehash_match" in attributes and attributes["moviehash_match"]) else "false")
+                list_item.setProperty("hearing_imp", "true" if attributes["hearing_impaired"] else "false")
+                """TODO take care of multiple cds id&id or something"""
+                listitems.append(list_item)
+                if(__addon__.getSetting('dualsub_enable') != 'true'):
+                  url = f"plugin://{__scriptid__}/?action=download&id={attributes['files'][0]['file_id']}"
 
-              xbmcplugin.addDirectoryItem(handle=self.handle, url=url, listitem=list_item, isFolder=False)
+                  xbmcplugin.addDirectoryItem(handle=self.handle, url=url, listitem=list_item, isFolder=False)
 
-        if(__addon__.getSetting('dualsub_enable') == 'true'):
-          listitems = sorted(listitems, key = lambda i: f"{i.getLabel()}|{i.getLabel2()}")
-          while True:
-            ret = __msg_box__.multiselect(__language__(32607), [i for i in listitems],useDetails=True)
-            if ret and len(ret) > 2:
-              __msg_box__.ok('', __language__(32608))
-            else:
-              break
-          if ret and len(ret) > 0:
-            ids=[]
-            url=''
-            for sub in ret:
-              attributes = self.subtitles[sub]["attributes"]
-              file_id = attributes['files'][0]['file_id']
-              ids.append(file_id)
-              if len(ret) < 2:
-                url = f"plugin://{__scriptid__}/?action=downloadstd&id={file_id}"
+            if(__addon__.getSetting('dualsub_enable') == 'true'):
+              listitems = sorted(listitems, key = lambda i: f"{i.getLabel()}|{i.getLabel2()}")
+              while True:
+                ret = __msg_box__.multiselect(__language__(32607), [i for i in listitems],useDetails=True)
+                if ret and len(ret) > 2:
+                  __msg_box__.ok('', __language__(32608))
+                else:
+                  break
+              if ret and len(ret) > 0:
+                ids=[]
+                url=''
+                for sub in ret:
+                  attributes = self.subtitles[sub]["attributes"]
+                  file_id = attributes['files'][0]['file_id']
+                  ids.append(file_id)
+                  if len(ret) < 2:
+                    url = f"plugin://{__scriptid__}/?action=downloadstd&id={file_id}"
 
-            idsjson=json.dumps(ids[:2])
-            idsjson=quote(idsjson)
+                idsjson=json.dumps(ids[:2])
+                idsjson=quote(idsjson)
 
-            if len(ids) < 2:
-              listitem = xbmcgui.ListItem(label2=__language__(32602))
-              xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
+                if len(ids) < 2:
+                  listitem = xbmcgui.ListItem(label2=__language__(32602))
+                  xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
 
-              listitem = xbmcgui.ListItem(label2=__language__(32603))
-              url = f"plugin://{__scriptid__}/?action=download&ids={idsjson}"
-              xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
-            else:
-              listitem = xbmcgui.ListItem(label2=__language__(32604))
-              url = f"plugin://{__scriptid__}/?action=download&ids={idsjson}"
-              xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
+                  listitem = xbmcgui.ListItem(label2=__language__(32603))
+                  url = f"plugin://{__scriptid__}/?action=download&ids={idsjson}"
+                  xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
+                else:
+                  listitem = xbmcgui.ListItem(label2=__language__(32604))
+                  url = f"plugin://{__scriptid__}/?action=download&ids={idsjson}"
+                  xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
 
-              listitem = xbmcgui.ListItem(label2=__language__(32605))
-              url = f"plugin://{__scriptid__}/?action=downloadswap&ids={idsjson}"
-              xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
+                  listitem = xbmcgui.ListItem(label2=__language__(32605))
+                  url = f"plugin://{__scriptid__}/?action=downloadswap&ids={idsjson}"
+                  xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
 
-            listitem = xbmcgui.ListItem(label2=__language__(32606))
-            url = f"plugin://{__scriptid__}/?action=settings"
-            xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
+                listitem = xbmcgui.ListItem(label2=__language__(32606))
+                url = f"plugin://{__scriptid__}/?action=settings"
+                xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=listitem,isFolder=False)
 
         xbmcplugin.endOfDirectory(self.handle)
