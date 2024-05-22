@@ -169,11 +169,13 @@ class SubtitleDownloader:
         """TODO rewrite using new data. do not forget Series/Episodes"""
         if self.subtitles:
             listitems=[]
-            for subtitle in reversed(sorted(self.subtitles, key=lambda x: (
+            subtitles=list(reversed(sorted(self.subtitles, key=lambda x: (
+                    x["attributes"].get("language", ''),
                     bool(x["attributes"].get("from_trusted", False)),
                     x["attributes"].get("votes", 0) or 0,
                     x["attributes"].get("ratings", 0) or 0,
-                    x["attributes"].get("download_count", 0) or 0))):
+                    x["attributes"].get("download_count", 0) or 0))))
+            for subtitle in subtitles:
                 attributes = subtitle["attributes"]
                 language = convert_language(attributes["language"], True)
                 log(__name__, attributes)
@@ -194,7 +196,6 @@ class SubtitleDownloader:
                   xbmcplugin.addDirectoryItem(handle=self.handle, url=url, listitem=list_item, isFolder=False)
 
             if(__addon__.getSetting('dualsub_enable') == 'true'):
-              listitems = sorted(listitems, key = lambda i: f"{i.getLabel()}|{i.getLabel2()}")
               while True:
                 ret = __msg_box__.multiselect(__language__(32607), [i for i in listitems],useDetails=True)
                 if ret and len(ret) > 2:
@@ -205,7 +206,7 @@ class SubtitleDownloader:
                 ids=[]
                 url=''
                 for sub in ret:
-                  attributes = self.subtitles[sub]["attributes"]
+                  attributes = subtitles[sub]["attributes"]
                   file_id = attributes['files'][0]['file_id']
                   ids.append(file_id)
                   if len(ret) < 2:
