@@ -68,6 +68,10 @@ msgctxt "#32214"
 msgid "Bad username. Make sure you have entered your username and not your email in the username field."
 msgstr ""
 
+msgctxt "#32215"
+msgid "AI Translated"
+msgstr ""
+
 msgctxt "#32601"
 msgid "Enable Dual Subtitles"
 msgstr ""

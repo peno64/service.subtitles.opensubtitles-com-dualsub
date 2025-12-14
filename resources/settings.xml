@@ -44,5 +44,6 @@
       <setting default="exclude" label="32211" id="hearing_impaired" type="select" values="include|exclude|only"/>
       <setting default="exclude" label="32212" id="foreign_parts_only" type="select" values="include|exclude|only"/>
       <setting default="exclude" label="32213" id="machine_translated" type="select" values="include|exclude|only"/>
+      <setting default="exclude" label="32215" id="ai_translated" type="select" values="include|exclude|only"/>
     </category>
 </settings>

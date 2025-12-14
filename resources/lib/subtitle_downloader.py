@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import uuid
+import xbmc
 
 import xbmcaddon
 import xbmcgui
@@ -84,8 +85,12 @@ class SubtitleDownloader:
             media_data = {"query": query}
         else:
             media_data = get_media_data()
-            if "basename" in file_data:
+            # Only use basename as fallback if no query was set by media data collection
+            if "basename" in file_data and not media_data.get("query"):
                 media_data["query"] = file_data["basename"]
+                log(__name__, f"Using basename as query fallback: {file_data['basename']}")
+            elif media_data.get("query"):
+                log(__name__, f"Using parsed query from media_data: {media_data['query']}")
             log(__name__, "media_data '%s' " % media_data)
 
         self.query = {**media_data, **file_data, **language_data}
@@ -103,7 +108,7 @@ class SubtitleDownloader:
             # TODO retry using guessit???
             log(__name__, "No subtitle found")
 
-    def downloadFile(self, id):
+    def downloadFile(self, id, clean):
         valid = 1
         try:
             self.file = self.open_subtitles.download_subtitle(
@@ -127,7 +132,24 @@ class SubtitleDownloader:
             error(__name__, 32001, e)
             valid = 0
 
-        subtitle_path = os.path.join(__temp__, f"{str(uuid.uuid4())}.{self.sub_format}")
+        #subtitle_path = os.path.join(__temp__, f"{str(uuid.uuid4())}.{self.sub_format}")
+        try:    # kodi > k19
+            dir_path = xbmcvfs.translatePath('special://temp/oss/')
+        except: # kodi < k19
+            dir_path = xbmc.translatePath('special://temp/oss/')
+
+        if clean and xbmcvfs.exists(dir_path):    # lets clean files from last usage
+            dirs, files = xbmcvfs.listdir(dir_path)
+            for file in files:
+                xbmcvfs.delete(os.path.join(dir_path, file))
+
+        if not xbmcvfs.exists(dir_path):  # lets create custom OSS sub directory if not exists
+            xbmcvfs.mkdir(dir_path)
+
+        subtitle_path = os.path.join(dir_path, "{0}.{1}.{2}".format('TempSubtitle', id, self.sub_format))
+
+        log(__name__, "XYXYXX download subtitle_path: {}".format(subtitle_path))
+
 
         if (valid==1):
             tmp_file = open(subtitle_path, "w" + "b")
@@ -141,8 +163,10 @@ class SubtitleDownloader:
         if(__addon__.getSetting('dualsub_enable') == 'true') and self.params["action"] != "downloadstd":
           ids=json.loads(unquote(self.params["ids"]))
           subs=[]
+          clean = True
           for id in ids:
-            subtitle_path = self.downloadFile(str(id))
+            subtitle_path = self.downloadFile(str(id), clean)
+            clean = False
             subs.append(subtitle_path)
           if self.params['action'] == 'downloadswap':
             subs.reverse()
@@ -152,7 +176,7 @@ class SubtitleDownloader:
           listitem = xbmcgui.ListItem(label=finalfile)
           xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=finalfile,listitem=listitem,isFolder=False)
         else:
-          subtitle_path = self.downloadFile(self.params["id"])
+          subtitle_path = self.downloadFile(self.params["id"], True)
 
           list_item = xbmcgui.ListItem(label=subtitle_path)
           xbmcplugin.addDirectoryItem(handle=self.handle, url=subtitle_path, listitem=list_item, isFolder=False)
@@ -186,12 +210,20 @@ class SubtitleDownloader:
                 list_item.setArt({
                     "icon": str(int(round(float(attributes["ratings"]) / 2))),
                     "thumb": get_flag(attributes["language"])})
+               # list_item.setArt({
+               #     "icon": str(int(round(float(attributes["ratings"]) / 2))),
+               #     "thumb": get_flag(language)})
+
+                log(__name__, "XYXYXX download get_flag: language in url {}".format(get_flag(attributes["language"])))
+
+
                 list_item.setProperty("sync", "true" if ("moviehash_match" in attributes and attributes["moviehash_match"]) else "false")
                 list_item.setProperty("hearing_imp", "true" if attributes["hearing_impaired"] else "false")
                 """TODO take care of multiple cds id&id or something"""
                 listitems.append(list_item)
                 if(__addon__.getSetting('dualsub_enable') != 'true'):
                   url = f"plugin://{__scriptid__}/?action=download&id={attributes['files'][0]['file_id']}"
+                  log(__name__, "XYXYXX download list_subtitles: language in url {url}")
 
                   xbmcplugin.addDirectoryItem(handle=self.handle, url=url, listitem=list_item, isFolder=False)
 

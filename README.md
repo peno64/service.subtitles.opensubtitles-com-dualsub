@@ -4,10 +4,13 @@ OpenSubtitles.com-dualsubtitles with dual subs KODI add-on
 The possibility to use two subtitles at the same time was originally developed by moham96.
 See https://github.com/moham96/service.subtitles.opensubtitles_by_opensubtitles
 
-Search and download subtitles for movies and TV-Series from OpenSubtitles.com. Search in 75 languages, 4.000.000+ subtitles, daily updates.
+Search and download subtitles for movies and TV-Series from OpenSubtitles.com. Search in 75 languages, 8.000.000+ subtitles, daily updates.
 Allow to display two subtitles at the same time
 
 REST API implementation based on tomburke25 [python-opensubtitles-rest-api](https://github.com/tomburke25/python-opensubtitles-rest-api)
+
+v2.0.3 (2025-11-22)
+- Implemented changes from v1.0.5 till v1.0.8
 
 v2.0.2 (2024-05-22)
 - Implemented changes from v1.0.3 and v1.0.4
@@ -17,6 +20,20 @@ v2.0.1 (2024-04-07)
 
 v2.0.0 (2023-11-29)
 - Add dual subtitle support
+
+v1.0.8 (2025-09-04)
+- performs a query to kodi library if imdb or tmdb ID is missing (thanks you cvanderkam)
+
+v1.0.7 (2025-08-26)
+- added IMDB and TMDB collection on files for more accurate search to the API
+
+v1.0.6 (2024-11-29)
+- fixed issue with RAR archives (thanks ninjacarr)
+- handles default chinese language to zh-cn  (thanks ninjacarr)
+
+v1.0.5 (2024-07-30)
+- fixed issue with portuguese file names
+- added AI translated filter (thanks Kate6)
 
 v1.0.4 (2024-01-15)
 - Sanitize language query
