@@ -67,16 +67,16 @@ def _strip_imdb_tt(value):
 def _extract_basic_tv_info(filename):
     """Extract basic TV show info from filename using simple regex"""
     import re
-    
+
     # Remove file extension
     name = filename.rsplit('.', 1)[0] if '.' in filename else filename
-    
+
     # Pattern to match TV show episodes: S##E## or Season##Episode##
     season_episode_patterns = [
         r'[Ss](\d{1,2})[Ee](\d{1,2})',  # S01E01, s01e01
         r'(\d{1,2})x(\d{1,2})',  # 1x01
     ]
-    
+
     for pattern in season_episode_patterns:
         match = re.search(pattern, name, re.IGNORECASE)
         if match:
@@ -88,7 +88,7 @@ def _extract_basic_tv_info(filename):
             show_title = re.sub(r'[._-]', ' ', show_title).strip()
             show_title = re.sub(r'\s+', ' ', show_title)  # Multiple spaces to single
             return show_title, season_num, episode_num
-    
+
     return None, None, None
 
 
@@ -318,26 +318,26 @@ def _call_guessit_api(filename):
         import urllib.request
         import urllib.parse
         import json
-        
+
         # Get API key from addon settings
         api_key = __addon__.getSetting("APIKey")
         if not api_key:
             log(__name__, "No API key found for guessit call")
             return None
-        
+
         # Prepare the request
         base_url = "https://api.opensubtitles.com/api/v1/utilities/guessit"
         params = {"filename": filename}
         url = f"{base_url}?{urllib.parse.urlencode(params)}"
-        
+
         # Create request with headers
         req = urllib.request.Request(url)
         req.add_header("Api-Key", api_key)
         req.add_header("User-Agent", f"Kodi OpenSubtitles.com v{__addon__.getAddonInfo('version')}")
         req.add_header("Accept", "application/json")
-        
+
         log(__name__, f"🔍 Calling guessit API for: {filename}")
-        
+
         # Make the request
         with urllib.request.urlopen(req) as response:
             if response.getcode() == 200:
@@ -347,7 +347,7 @@ def _call_guessit_api(filename):
             else:
                 log(__name__, f"❌ Guessit API error: HTTP {response.getcode()}")
                 return None
-                
+
     except Exception as e:
         log(__name__, f"❌ Failed to call guessit API: {e}")
         return None
@@ -403,12 +403,12 @@ def get_media_data():
             "imdb_id": None,
             "tmdb_id": None}
     log(__name__, f"Initial media data from InfoLabels: {item}")
-    
+
     # Check if we're dealing with a non-library file (all InfoLabels empty)
-    if not any([item["tv_show_title"], item["original_title"], item["year"], 
+    if not any([item["tv_show_title"], item["original_title"], item["year"],
                 item["season_number"], item["episode_number"]]):
         log(__name__, "⚠️  All InfoLabels are empty - likely non-library file playback")
-        
+
         try:
             playing_file = get_file_path()
             if playing_file:
@@ -416,12 +416,12 @@ def get_media_data():
                 import os
                 filename = os.path.basename(playing_file)
                 log(__name__, f"📝 Filename to parse: {filename}")
-                
+
                 # STEP 1: Try basic filename parsing for TV shows
                 show_title, season_num, episode_num = _extract_basic_tv_info(filename)
                 if show_title and season_num and episode_num:
                     log(__name__, f"🎬 Basic parsing found TV show: '{show_title}' S{season_num}E{episode_num}")
-                    
+
                     # STEP 2: Try to find this show in Kodi library
                     parent_imdb, parent_tmdb, tvshow_id = _query_kodi_library_for_show(show_title)
                     if parent_imdb or parent_tmdb:
@@ -463,7 +463,7 @@ def get_media_data():
                             item["year"] = str(movie_year) if movie_year else ""
                             log(__name__, f"🎬 Guessit parsed movie: {movie_title} ({movie_year})")
                             log(__name__, f"🔍 Set query to: '{item['query']}'")
-                            
+
                             # Try to find this movie in Kodi library
                             movie_imdb, movie_tmdb, file_path = _query_kodi_library_for_movie(movie_title, movie_year)
                             if movie_imdb or movie_tmdb:
@@ -482,7 +482,7 @@ def get_media_data():
                         log(__name__, "❌ All parsing methods failed, will use filename as query")
         except Exception as e:
             log(__name__, f"Failed to parse filename: {e}")
-    
+
     # ---------------- TV SHOW (Episode) ----------------
     if item["tv_show_title"]:
         item["tvshowid"] = xbmc.getInfoLabel("VideoPlayer.TvShowDBID")
@@ -493,7 +493,15 @@ def get_media_data():
         try:
             # True parent show IMDb ID from TvShow properties
             parent_imdb_raw = (xbmc.getInfoLabel("ListItem.Property(TvShow.IMDBNumber)")
-                               or xbmc.getInfoLabel("VideoPlayer.TvShow.IMDBNumber"))
+                               or (__addon__.getSetting('fixsearchshows') == 'false' and xbmc.getInfoLabel("VideoPlayer.TvShow.IMDBNumber"))
+                               or (__addon__.getSetting('fixsearchshows') == 'true' and xbmc.getInfoLabel("VideoPlayer.IMDBNumber")))
+
+            if(__addon__.getSetting('fixsearchshows') == 'true'):
+                tag = xbmc.Player().getVideoInfoTag()
+                imdb_id = tag.getUniqueID('imdb')
+                if not imdb_id:
+                    parent_imdb_raw = ''
+
             imdb_digits = _strip_imdb_tt(parent_imdb_raw)
             if imdb_digits and 6 <= len(imdb_digits) <= 8:
                 item["parent_imdb_id"] = int(imdb_digits)
@@ -526,16 +534,29 @@ def get_media_data():
             except Exception as e:
                 log(__name__, f"Failed to read episode IDs from InfoLabels: {e}")
 
-        # 3) If still missing, fall back to library JSON-RPC (when the show is in the library)
-        if len(item["tvshowid"]) != 0 and (not item["parent_tmdb_id"] or not item["parent_imdb_id"]):
+        # 3) Query the library (when the show is in it) for the true parent IDs and the
+        #    show's ORIGINAL title. Runs whenever we have a tvshowid: even when parent IDs
+        #    are already known we still want originaltitle so localized libraries
+        #    (e.g. Polish "Żywe trupy" -> "The Walking Dead") match on OS.com.
+        #    NB: this is the *show's* originaltitle from the library, unlike
+        #    VideoPlayer.OriginalTitle, which during episode playback returns the
+        #    *episode's* original title (usually empty). Thanks to @notoco (PR #38)
+        #    for reporting the localized-title search failure.
+        if len(item["tvshowid"]) != 0:
             try:
                 TVShowDetails = xbmc.executeJSONRPC(
                     '{ "jsonrpc": "2.0", "id":"1", "method": "VideoLibrary.GetTVShowDetails", '
-                    '"params":{"tvshowid":' + item["tvshowid"] + ', "properties": ["episodeguide", "imdbnumber", "uniqueid"]} }'
+                    '"params":{"tvshowid":' + item["tvshowid"] + ', "properties": ["originaltitle", "episodeguide", "imdbnumber", "uniqueid"]} }'
                 )
                 TVShowDetails_dict = json.loads(TVShowDetails)
                 if "result" in TVShowDetails_dict and "tvshowdetails" in TVShowDetails_dict["result"]:
                     tvshow_details = TVShowDetails_dict["result"]["tvshowdetails"]
+
+                    # Prefer the show's original title for the search query (localized-library fix)
+                    original_show_title = normalize_string(tvshow_details.get("originaltitle") or "")
+                    if original_show_title:
+                        item["query"] = original_show_title
+                        log(__name__, f"Using show original title for query: '{original_show_title}'")
 
                     # parent IMDb
                     if not item["parent_imdb_id"]:
@@ -590,7 +611,7 @@ def get_media_data():
     elif item["original_title"]:
         item["query"] = item["original_title"]
         movie_dbid = xbmc.getInfoLabel("VideoPlayer.DBID")
-        
+
         # First try to get IDs from InfoLabels (most reliable for library content)
         try:
             imdb_raw = (xbmc.getInfoLabel("VideoPlayer.UniqueID(imdb)")
@@ -608,7 +629,7 @@ def get_media_data():
                     log(__name__, f"Found TMDB ID for movie from InfoLabel: {item['tmdb_id']}")
         except (ValueError, KeyError) as e:
             log(__name__, f"Failed to extract movie IDs from InfoLabels: {e}")
-        
+
         # If no IDs found and we have a database ID, query the library directly
         if not item.get("imdb_id") and not item.get("tmdb_id") and movie_dbid and movie_dbid.isdigit():
             log(__name__, f"🔍 No IDs from InfoLabels, trying library query with DBID: {movie_dbid}")
@@ -619,7 +640,7 @@ def get_media_data():
             if movie_tmdb:
                 item["tmdb_id"] = movie_tmdb
                 log(__name__, f"Found TMDB ID from library query: {movie_tmdb}")
-        
+
         # Last resort: search library by title and year
         if not item.get("imdb_id") and not item.get("tmdb_id"):
             log(__name__, f"🔍 No IDs found, searching library by title: '{item['original_title']}' ({item.get('year')})")
@@ -667,6 +688,10 @@ def get_media_data():
             item["parent_imdb_id"] = None  # Clear parent IDs
             item["parent_tmdb_id"] = None
             item["tmdb_id"] = None         # Clear conflicting episode ID
+            if(__addon__.getSetting('fixsearchshows') == 'true'):
+                item["query"] = " "            # If imdb id is provided then don't add query because result will be empty then
+                item["season_number"] = None   # If imdb id is provided then don't add season because result will be empty then
+                item["episode_number"] = None  # If imdb id is provided then don't add episode because result will be empty then
             log(__name__, f"✅ Final Strategy: episode imdb_id={item['imdb_id']} (no season/episode)")
         elif item.get("tmdb_id"):
             # Strategy: Use episode-specific TMDb ID only

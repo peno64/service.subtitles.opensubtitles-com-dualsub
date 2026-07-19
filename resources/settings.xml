@@ -39,11 +39,14 @@
       <setting id="OSuser" type="text" label="32201" default=""/>
       <setting id="OSpass" type="text" option = "hidden" label="32202" default=""/>
       <setting id="APIKey" type="text" option = "hidden" visible="false" label="APIKey" default="qo2wQs1PXwIHJsXvIiWXu1ZbVjaboPh6"/>
+      <setting id="test_connection" type="action" label="32010" action="RunScript(special://home/addons/service.subtitles.opensubtitles-com-dualsub/test_connection.py)"/>
     </category>
     <category label="32102">
       <setting default="exclude" label="32211" id="hearing_impaired" type="select" values="include|exclude|only"/>
       <setting default="exclude" label="32212" id="foreign_parts_only" type="select" values="include|exclude|only"/>
       <setting default="exclude" label="32213" id="machine_translated" type="select" values="include|exclude|only"/>
       <setting default="exclude" label="32215" id="ai_translated" type="select" values="include|exclude|only"/>
+      <setting type="lsep"/>
+      <setting default="false"   label="32600" id="fixsearchshows" type="bool" />
     </category>
 </settings>
